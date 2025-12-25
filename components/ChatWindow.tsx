@@ -39,17 +39,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
   const handleSendMessage = async (text: string, file?: Message['file']) => {
     if (!text.trim() && !file) return;
 
-    const newMessage: Message = {
+    // Firebase Realtime Database does not accept 'undefined' values.
+    // We construct the object carefully to avoid keys with undefined values.
+    const newMessage: any = {
       id: Math.random().toString(36).substr(2, 9),
       senderId: currentUser.id,
       text: text,
       timestamp: Date.now(),
-      status: 'sent',
-      file: file
+      status: 'sent'
     };
 
-    await db.saveMessage(convId, newMessage);
-    setInputText('');
+    if (file) {
+      newMessage.file = file;
+    }
+
+    try {
+      await db.saveMessage(convId, newMessage as Message);
+      setInputText('');
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    }
   };
 
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,7 +157,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
         <div className="absolute bottom-20 left-2 right-2 md:left-4 md:right-auto bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200">
           <div className="grid grid-cols-5 gap-2">
             {COMMON_EMOJIS.map(emoji => (
-              <button key={emoji} onClick={() => { setInputText(prev => prev + emoji); setShowEmojiPicker(false); }} className="text-2xl hover:bg-slate-50 p-2 rounded-xl transition-all active:scale-90">{emoji}</button>
+              <button key={emoji} type="button" onClick={() => { setInputText(prev => prev + emoji); setShowEmojiPicker(false); }} className="text-2xl hover:bg-slate-50 p-2 rounded-xl transition-all active:scale-90">{emoji}</button>
             ))}
           </div>
         </div>

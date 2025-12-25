@@ -18,12 +18,23 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const database = getDatabase(app);
 
+// Utility to remove undefined values from objects (Firebase doesn't allow them)
+const cleanObject = (obj: any) => {
+  const newObj = { ...obj };
+  Object.keys(newObj).forEach(key => {
+    if (newObj[key] === undefined) {
+      delete newObj[key];
+    }
+  });
+  return newObj;
+};
+
 export const db = {
   // --- USER METHODS ---
   
   async saveUser(user: User) {
     try {
-      await set(ref(database, 'users/' + user.id), user);
+      await set(ref(database, 'users/' + user.id), cleanObject(user));
     } catch (e) {
       console.error("Firebase saveUser error:", e);
       throw e;
@@ -77,8 +88,9 @@ export const db = {
     try {
       const messagesRef = ref(database, `messages/${chatId}`);
       const newMessageRef = push(messagesRef);
-      await set(newMessageRef, message);
-      await set(ref(database, `lastMessages/${chatId}`), message);
+      const cleanedMessage = cleanObject(message);
+      await set(newMessageRef, cleanedMessage);
+      await set(ref(database, `lastMessages/${chatId}`), cleanedMessage);
     } catch (e) {
       console.error("Firebase saveMessage error:", e);
       throw e;
@@ -95,6 +107,8 @@ export const db = {
           ...data[key],
           id: key
         }));
+        // Sort messages by timestamp just in case
+        msgList.sort((a, b) => a.timestamp - b.timestamp);
         callback(msgList);
       } else {
         callback([]);
