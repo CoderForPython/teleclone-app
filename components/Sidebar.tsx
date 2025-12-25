@@ -6,33 +6,27 @@ import { db } from '../services/db';
 interface SidebarProps {
   currentUser: User;
   users: User[];
+  lastMessages: Record<string, Message>;
   selectedUserId?: string;
   onUserSelect: (user: User) => void;
   onLogout: () => void;
-  refreshKey: number;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, selectedUserId, onUserSelect, onLogout, refreshKey }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, selectedUserId, onUserSelect, onLogout }) => {
   const [search, setSearch] = useState('');
 
   const filteredUsers = users.filter(user => {
     return user.username.toLowerCase().includes(search.toLowerCase());
   });
 
-  const getUserLastMessage = (userId: string): Message | undefined => {
-    const convId = db.getConversationId(currentUser.id, userId);
-    return db.getLastMessage(convId);
-  };
-
   return (
     <>
-      {/* Top Header */}
       <div className="p-4 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm z-20">
         <div className="flex items-center space-x-3 overflow-hidden">
           <img src={currentUser.avatar} alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
           <div className="flex flex-col min-w-0">
             <span className="font-bold text-slate-800 leading-tight truncate">{currentUser.username}</span>
-            <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Settings</span>
+            <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Online</span>
           </div>
         </div>
         <button 
@@ -44,7 +38,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, selectedUserId, o
         </button>
       </div>
 
-      {/* Search Bar */}
       <div className="p-4 bg-white">
         <div className="relative">
           <input 
@@ -58,13 +51,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, selectedUserId, o
         </div>
       </div>
 
-      {/* User List */}
       <div className="flex-grow overflow-y-auto space-y-1 py-2 bg-white">
         {filteredUsers.length === 0 && (
           <p className="text-center text-slate-400 text-xs mt-10">No users found</p>
         )}
         {filteredUsers.map(user => {
-          const lastMsg = getUserLastMessage(user.id);
+          const convId = db.getConversationId(currentUser.id, user.id);
+          const lastMsg = lastMessages[convId];
           const isSelected = selectedUserId === user.id;
           const isOnline = db.isOnline(user);
 
@@ -98,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, selectedUserId, o
                   )}
                 </div>
                 <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>
-                  {lastMsg ? lastMsg.text : (isOnline ? 'Online' : 'Offline')}
+                  {lastMsg ? (lastMsg.file ? '📎 File' : lastMsg.text) : (isOnline ? 'Online' : 'Offline')}
                 </p>
               </div>
             </div>

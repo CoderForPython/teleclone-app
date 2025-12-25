@@ -1,86 +1,94 @@
 
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set, push, onValue, get, update, child } from "firebase/database";
 import { User, Message } from '../types';
 
-const USERS_KEY = 'teleclone_users';
-const MESSAGES_KEY = 'teleclone_messages_';
-
-const initDefaults = () => {
-  const data = localStorage.getItem(USERS_KEY);
-  let users: User[] = data ? JSON.parse(data) : [];
-  
-  const defaults = [
-    { id: 'admin-id', username: 'admin', password: 'admin', status: 'offline', lastSeen: 0, avatar: 'https://picsum.photos/seed/admin/200' },
-    { id: 'admin2-id', username: 'admin2', password: 'admin2', status: 'offline', lastSeen: 0, avatar: 'https://picsum.photos/seed/admin2/200' }
-  ];
-
-  let changed = false;
-  defaults.forEach(def => {
-    if (!users.find(u => u.username === def.username)) {
-      users.push(def as User);
-      changed = true;
-    }
-  });
-
-  if (changed) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  }
+// Конфигурация обновлена данными твоего проекта teleclone-69115
+const firebaseConfig = {
+  apiKey: process.env.API_KEY, 
+  authDomain: "teleclone-69115.firebaseapp.com",
+  databaseURL: "https://teleclone-69115-default-rtdb.firebaseio.com/",
+  projectId: "teleclone-69115",
+  storageBucket: "teleclone-69115.appspot.com",
+  messagingSenderId: "1046522299138",
+  appId: "1:1046522299138:web:teleclone"
 };
 
-initDefaults();
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
 
 export const db = {
-  getUsers: (): User[] => {
-    const data = localStorage.getItem(USERS_KEY);
-    return data ? JSON.parse(data) : [];
+  // --- USER METHODS ---
+  
+  async saveUser(user: User) {
+    await set(ref(database, 'users/' + user.id), user);
   },
 
-  saveUser: (user: User) => {
-    const users = db.getUsers();
-    const index = users.findIndex(u => u.id === user.id);
-    if (index !== -1) {
-      users[index] = user;
-    } else {
-      users.push(user);
+  async findUserByUsername(username: string): Promise<User | undefined> {
+    const snapshot = await get(ref(database, 'users'));
+    if (snapshot.exists()) {
+      const users = snapshot.val();
+      return Object.values(users).find((u: any) => u.username === username) as User;
     }
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    return undefined;
   },
 
-  updateHeartbeat: (userId: string) => {
-    const users = db.getUsers();
-    const index = users.findIndex(u => u.id === userId);
-    if (index !== -1) {
-      users[index].lastSeen = Date.now();
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    }
+  updateHeartbeat(userId: string) {
+    const userRef = ref(database, `users/${userId}`);
+    update(userRef, { lastSeen: Date.now() });
   },
 
-  isOnline: (user: User): boolean => {
+  subscribeToUsers(callback: (users: User[]) => void) {
+    const usersRef = ref(database, 'users');
+    return onValue(usersRef, (snapshot) => {
+      if (snapshot.exists()) {
+        callback(Object.values(snapshot.val()));
+      } else {
+        callback([]);
+      }
+    });
+  },
+
+  isOnline(user: User): boolean {
     if (!user.lastSeen) return false;
-    // Consider online if seen in the last 15 seconds
+    // Считаем пользователя онлайн, если он обновлял статус в последние 15 секунд
     return (Date.now() - user.lastSeen) < 15000;
   },
 
-  findUserByUsername: (username: string): User | undefined => {
-    return db.getUsers().find(u => u.username === username);
-  },
+  // --- CHAT METHODS ---
 
-  getConversationId: (id1: string, id2: string): string => {
+  getConversationId(id1: string, id2: string): string {
     return [id1, id2].sort().join('--');
   },
 
-  getMessages: (chatId: string): Message[] => {
-    const data = localStorage.getItem(MESSAGES_KEY + chatId);
-    return data ? JSON.parse(data) : [];
+  async saveMessage(chatId: string, message: Message) {
+    const messagesRef = ref(database, `messages/${chatId}`);
+    const newMessageRef = push(messagesRef);
+    await set(newMessageRef, message);
+    
+    // Сохраняем последнее сообщение для превью в сайдбаре
+    await set(ref(database, `lastMessages/${chatId}`), message);
   },
 
-  saveMessage: (chatId: string, message: Message) => {
-    const messages = db.getMessages(chatId);
-    messages.push(message);
-    localStorage.setItem(MESSAGES_KEY + chatId, JSON.stringify(messages));
+  subscribeToMessages(chatId: string, callback: (messages: Message[]) => void) {
+    const messagesRef = ref(database, `messages/${chatId}`);
+    return onValue(messagesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        callback(Object.values(snapshot.val()));
+      } else {
+        callback([]);
+      }
+    });
   },
 
-  getLastMessage: (chatId: string): Message | undefined => {
-    const messages = db.getMessages(chatId);
-    return messages.length > 0 ? messages[messages.length - 1] : undefined;
+  subscribeToLastMessages(callback: (lastMsgs: Record<string, Message>) => void) {
+    const ref_ = ref(database, 'lastMessages');
+    return onValue(ref_, (snapshot) => {
+      if (snapshot.exists()) {
+        callback(snapshot.val());
+      } else {
+        callback({});
+      }
+    });
   }
 };

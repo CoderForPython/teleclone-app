@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { User } from '../types';
+import { User, Message } from '../types';
 import Sidebar from './Sidebar';
 import ChatWindow from './ChatWindow';
 import { db } from '../services/db';
@@ -13,35 +13,30 @@ interface MainLayoutProps {
 const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
 
-  // Sync users from DB
-  const updateUsers = () => {
-    const allUsers = db.getUsers().filter(u => u.id !== currentUser.id);
-    setUsers(allUsers);
-    
-    // If a user is selected, update their local data (for online status)
-    if (selectedUser) {
-      const updatedSelected = allUsers.find(u => u.id === selectedUser.id);
-      if (updatedSelected) setSelectedUser(updatedSelected);
-    }
-  };
-
+  // Subscribe to all users (online status, avatars, etc.)
   useEffect(() => {
-    updateUsers();
-  }, [currentUser.id, refreshKey]);
+    const unsubscribe = db.subscribeToUsers((allUsers) => {
+      const otherUsers = allUsers.filter(u => u.id !== currentUser.id);
+      setUsers(otherUsers);
+      
+      // Update selected user data if they changed
+      if (selectedUser) {
+        const updatedSelected = otherUsers.find(u => u.id === selectedUser.id);
+        if (updatedSelected) setSelectedUser(updatedSelected);
+      }
+    });
+    return () => unsubscribe();
+  }, [currentUser.id, selectedUser?.id]);
 
-  // Periodic UI refresh for online status
+  // Subscribe to last messages for sidebar previews
   useEffect(() => {
-    const interval = setInterval(() => {
-      updateUsers();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [selectedUser]);
-
-  const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1);
-  };
+    const unsubscribe = db.subscribeToLastMessages((msgs) => {
+      setLastMessages(msgs);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleBack = () => {
     setSelectedUser(null);
@@ -49,7 +44,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout }) => {
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
-      {/* Sidebar - Hidden on mobile if a chat is selected */}
       <div 
         className={`
           ${selectedUser ? 'hidden md:flex' : 'flex'} 
@@ -59,14 +53,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout }) => {
         <Sidebar 
           currentUser={currentUser} 
           users={users} 
+          lastMessages={lastMessages}
           selectedUserId={selectedUser?.id}
           onUserSelect={(user) => setSelectedUser(user)}
           onLogout={onLogout}
-          refreshKey={refreshKey}
         />
       </div>
 
-      {/* Main Chat Area - Hidden on mobile if no chat is selected */}
       <div className={`
         ${!selectedUser ? 'hidden md:flex' : 'flex'} 
         flex-grow flex flex-col bg-slate-100 relative h-full
@@ -75,7 +68,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout }) => {
           <ChatWindow 
             targetUser={selectedUser} 
             currentUser={currentUser} 
-            onMessageSent={handleRefresh}
             onBack={handleBack}
           />
         ) : (
@@ -85,7 +77,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout }) => {
             </div>
             <h2 className="text-xl font-medium text-slate-600">Select a person to start messaging</h2>
             <p className="mt-2 text-slate-400 text-sm max-w-xs text-center">
-              Choose one of the registered users from the sidebar to begin your chat.
+              Real-time synchronization via Firebase is active.
             </p>
           </div>
         )}

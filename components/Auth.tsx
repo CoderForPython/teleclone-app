@@ -12,38 +12,49 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     if (!username || !password) {
       setError('Please fill in all fields');
+      setLoading(false);
       return;
     }
 
-    if (isLogin) {
-      const user = db.findUserByUsername(username);
-      if (user && user.password === password) {
-        onLogin(user);
+    try {
+      if (isLogin) {
+        const user = await db.findUserByUsername(username);
+        if (user && user.password === password) {
+          onLogin(user);
+        } else {
+          setError('Invalid username or password');
+        }
       } else {
-        setError('Invalid username or password');
+        const existing = await db.findUserByUsername(username);
+        if (existing) {
+          setError('Username already exists');
+          setLoading(false);
+          return;
+        }
+        const newUser: User = {
+          id: Math.random().toString(36).substr(2, 9),
+          username,
+          password,
+          status: 'online',
+          avatar: `https://picsum.photos/seed/${username}/200`,
+          lastSeen: Date.now()
+        };
+        await db.saveUser(newUser);
+        onLogin(newUser);
       }
-    } else {
-      const existing = db.findUserByUsername(username);
-      if (existing) {
-        setError('Username already exists');
-        return;
-      }
-      const newUser: User = {
-        id: Math.random().toString(36).substr(2, 9),
-        username,
-        password,
-        status: 'online',
-        avatar: `https://picsum.photos/seed/${username}/200`
-      };
-      db.saveUser(newUser);
-      onLogin(newUser);
+    } catch (err) {
+      setError('Connection error. Check your Firebase settings.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,8 +67,8 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
               <i className="fa-solid fa-paper-plane text-4xl"></i>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">TeleClone AI</h1>
-          <p className="mt-2 text-slate-500">Secure. Fast. AI Powered.</p>
+          <h1 className="text-3xl font-bold text-slate-800">TeleClone App</h1>
+          <p className="mt-2 text-slate-500">Live Realtime Chat</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -86,9 +97,10 @@ const Auth: React.FC<AuthProps> = ({ onLogin }) => {
 
           <button
             type="submit"
-            className="w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-[0.98]"
+            disabled={loading}
+            className={`w-full py-3 px-4 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition-all active:scale-[0.98] ${loading ? 'opacity-50' : ''}`}
           >
-            {isLogin ? 'Log In' : 'Sign Up'}
+            {loading ? 'Processing...' : (isLogin ? 'Log In' : 'Sign Up')}
           </button>
         </form>
 
