@@ -1,0 +1,8 @@
+{
+  "name": "TeleClone AI",
+  "description": "A feature-rich Telegram clone with authentication, real-time-like chat interface, and integrated Gemini AI assistant for smart conversations.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
