@@ -181,26 +181,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
 
   return (
     <div className={`flex flex-col h-full ${theme === 'dark' ? 'bg-slate-900 text-slate-100' : 'bg-white text-slate-900'} relative w-full overflow-hidden`}>
-      {/* Header */}
-      <div className={`p-3 md:p-4 border-b ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} flex items-center space-x-2 md:space-x-4 shadow-sm z-20`}>
-        <button onClick={onBack} className="md:hidden text-slate-500 hover:text-blue-500 p-2 -ml-2 transition-colors">
-          <i className="fa-solid fa-arrow-left text-xl"></i>
+      {/* Header - Compact height on mobile (py-1.5 vs py-4) */}
+      <div className={`py-1.5 px-3 md:py-4 md:px-4 border-b ${theme === 'dark' ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'} flex items-center space-x-2 md:space-x-4 shadow-sm z-20`}>
+        <button onClick={onBack} className="md:hidden text-slate-500 hover:text-blue-500 p-1.5 -ml-2 transition-colors">
+          <i className="fa-solid fa-arrow-left text-lg"></i>
         </button>
-        <img src={targetUser.avatar} className={`w-9 h-9 md:w-10 md:h-10 rounded-full object-cover border ${theme === 'dark' ? 'border-slate-800' : 'border-slate-100'} flex-shrink-0`} alt={targetUser.username} />
+        <img src={targetUser.avatar} className={`w-8 h-8 md:w-10 md:h-10 rounded-full object-cover flex-shrink-0 shadow-sm`} alt={targetUser.username} />
         <div className="flex-grow min-w-0">
           <h2 className="font-bold leading-tight truncate text-sm md:text-base">{targetUser.username}</h2>
-          <span className={`text-[10px] md:text-[11px] font-medium ${isOnline ? 'text-blue-500' : 'text-slate-400'}`}>
+          <span className={`text-[10px] md:text-[11px] font-medium block -mt-0.5 ${isOnline ? 'text-blue-500' : 'text-slate-400'}`}>
             {isOnline ? 'online' : lastSeenText}
           </span>
         </div>
         
-        <div className="flex items-center space-x-2 md:space-x-4">
+        <div className="flex items-center space-x-1 md:space-x-4">
           {selectionMode && (
             <div className="flex items-center space-x-1 md:space-x-2 mr-1">
-              <button onClick={cancelSelectionMode} className={`px-2.5 py-1.5 md:px-3 rounded-lg ${theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} transition-colors text-xs md:text-sm font-semibold`}>
+              <button onClick={cancelSelectionMode} className={`px-2 py-1 md:px-3 rounded-lg ${theme === 'dark' ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'} transition-colors text-[10px] md:text-sm font-semibold`}>
                 Отмена
               </button>
-              <button onClick={deleteSelectedMessages} disabled={selectedIds.size === 0 || isDeleting} className={`px-2.5 py-1.5 md:px-3 rounded-lg text-white font-semibold text-xs md:text-sm transition-all ${selectedIds.size > 0 ? 'bg-red-500 hover:bg-red-600 shadow-md shadow-red-100' : 'bg-slate-300 cursor-not-allowed'}`}>
+              <button onClick={deleteSelectedMessages} disabled={selectedIds.size === 0 || isDeleting} className={`px-2 py-1 md:px-3 rounded-lg text-white font-semibold text-[10px] md:text-sm transition-all ${selectedIds.size > 0 ? 'bg-red-500 hover:bg-red-600' : 'bg-slate-300 cursor-not-allowed'}`}>
                 {isDeleting ? '...' : 'Удалить'}
               </button>
             </div>
@@ -210,15 +210,15 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
             <button 
               onClick={onStartCall}
               disabled={selectionMode || isCallDisabled}
-              className={`transition-colors ${theme === 'dark' ? 'bg-slate-800' : 'bg-blue-50'} w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm ${ (selectionMode || isCallDisabled) ? 'opacity-30 cursor-not-allowed' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-100 dark:hover:bg-slate-700'}`}
+              className={`transition-colors ${theme === 'dark' ? 'bg-slate-800' : 'bg-blue-50'} w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm ${ (selectionMode || isCallDisabled) ? 'opacity-30 cursor-not-allowed' : 'text-slate-400 hover:text-blue-500 hover:bg-blue-100 dark:hover:bg-slate-700'}`}
               title={targetUser.callsDisabled ? "Звонки отключены пользователем" : "Аудиозвонок"}
             >
-              <i className={`fa-solid ${targetUser.callsDisabled ? 'fa-phone-slash' : 'fa-phone'} text-sm md:text-base`}></i>
+              <i className={`fa-solid ${targetUser.callsDisabled ? 'fa-phone-slash' : 'fa-phone'} text-xs md:text-base`}></i>
             </button>
           </div>
 
           <div className="relative" ref={menuRef}>
-            <button onClick={() => setShowMenu(!showMenu)} className="text-slate-400 hover:text-blue-500 transition-colors p-2">
+            <button onClick={() => setShowMenu(!showMenu)} className="text-slate-400 hover:text-blue-500 transition-colors p-1.5">
               <i className="fa-solid fa-ellipsis-vertical text-base md:text-lg"></i>
             </button>
             {showMenu && (
@@ -227,7 +227,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
                   <i className="fa-solid fa-trash-can text-slate-400"></i>
                   <span className="font-medium">Удалить сообщения</span>
                 </button>
-                {targetUser.id === 'bot_support' && isAdminUnlocked && (
+                {targetUser.id === 'bot_support' && (isAdminUnlocked || currentUser.username === 'admin') && (
                   <button onClick={() => { setShowMenu(false); onOpenAdmin?.(); }} className={`w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center space-x-3 transition-colors border-t ${theme === 'dark' ? 'border-slate-700' : 'border-slate-50'}`}>
                     <i className="fa-solid fa-user-shield"></i>
                     <span className="font-bold">Панель админа</span>
@@ -257,6 +257,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
                     </div>
                   </div>
                 )}
+
                 <div className={`max-w-[85%] md:max-w-[75%] rounded-2xl relative shadow-sm overflow-hidden flex flex-col transition-transform ${isOwn ? 'bg-blue-600 text-white rounded-tr-none' : (theme === 'dark' ? 'bg-slate-800 text-slate-100 border-slate-700' : 'bg-white text-slate-800 border-slate-100') } border ${isImage ? 'p-1' : 'px-3 py-1.5'} ${selectionMode ? 'cursor-pointer active:scale-[0.98]' : ''}`}>
                   {isImage && msg.file && (
                     <div className="relative overflow-hidden rounded-xl">
@@ -284,6 +285,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
                     {isOwn && <i className="fa-solid fa-check-double text-[8px]"></i>}
                   </div>
                 </div>
+
                 {selectionMode && !isOwn && (
                   <div className="ml-3 flex-shrink-0 cursor-pointer animate-in fade-in slide-in-from-left-2 duration-200">
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 bg-white shadow-inner'}`}>

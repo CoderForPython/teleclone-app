@@ -23,6 +23,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const durationIntervalRef = useRef<number | null>(null);
+  
+  // Audio Context for Volume Boost
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
 
   const isCaller = activeCall.callerId === currentUser.id;
   const callPathId = activeCall.receiverId;
@@ -70,8 +74,15 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
   }, [isMuted]);
 
   useEffect(() => {
+    // Basic volume setting
     if (audioRef.current) {
-      audioRef.current.volume = isSpeaker ? 1.0 : 0.3;
+      // Increased base levels: Speaker 100%, Earpiece 60% (was 30%)
+      audioRef.current.volume = isSpeaker ? 1.0 : 0.6;
+    }
+    
+    // Apply GainNode boost if available (2x boost)
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = isSpeaker ? 2.5 : 1.5;
     }
   }, [isSpeaker]);
 
@@ -91,9 +102,30 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
       pc.ontrack = (event) => {
-        remoteStreamRef.current = event.streams[0];
-        if (audioRef.current) {
-          audioRef.current.srcObject = event.streams[0];
+        const remoteStream = event.streams[0];
+        remoteStreamRef.current = remoteStream;
+        
+        // Initialize Audio Context for Volume Boost
+        if (!audioCtxRef.current) {
+          const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+          const ctx = new AudioContextClass();
+          const source = ctx.createMediaStreamSource(remoteStream);
+          const gainNode = ctx.createGain();
+          const destination = ctx.createMediaStreamDestination();
+          
+          gainNode.gain.value = isSpeaker ? 2.5 : 1.5; // High initial boost
+          
+          source.connect(gainNode);
+          gainNode.connect(destination);
+          
+          audioCtxRef.current = ctx;
+          gainNodeRef.current = gainNode;
+          
+          if (audioRef.current) {
+            audioRef.current.srcObject = destination.stream;
+          }
+        } else if (audioRef.current) {
+          audioRef.current.srcObject = remoteStream;
         }
       };
 
@@ -167,6 +199,9 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
     if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
     }
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close();
+    }
   };
 
   const formatTime = (s: number) => {
@@ -188,7 +223,7 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
           <div className={`absolute inset-0 bg-blue-500 rounded-full blur-2xl opacity-40 transition-all duration-1000 ${callStatus === 'ringing' ? 'scale-150 animate-pulse' : 'scale-100'}`}></div>
           <img 
             src={isCaller ? activeCall.receiverId : activeCall.callerAvatar} 
-            className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-white/20 object-cover shadow-2xl relative z-10" 
+            className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover shadow-2xl relative z-10" 
             alt="Avatar" 
             onError={(e) => {
               (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${isCaller ? activeCall.receiverId : activeCall.callerName}`;

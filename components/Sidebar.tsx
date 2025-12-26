@@ -21,8 +21,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Filter out blocked users from the general contact list (except for system bots)
   const filteredUsers = users.filter(user => {
-    return user.username.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = user.username.toLowerCase().includes(search.toLowerCase());
+    const isVisible = !user.isBlocked || user.id === 'bot_support';
+    return matchesSearch && isVisible;
   });
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
           <div className="relative group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
             <img 
               src={currentUser.avatar} 
-              className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover dark:border-slate-800" 
+              className="w-24 h-24 rounded-full shadow-md object-cover" 
               alt="Profile" 
             />
             <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -153,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
       {/* Main Chats Sidebar Header */}
       <div className={`p-4 flex items-center justify-between border-b ${theme === 'dark' ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'} shadow-sm z-20`}>
         <div className="flex items-center space-x-3 overflow-hidden">
-          <img src={currentUser.avatar} alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 object-cover" />
+          <img src={currentUser.avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
           <div className="flex flex-col min-w-0">
             <span className="font-bold leading-tight truncate">{currentUser.username}</span>
             <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Online</span>
@@ -210,11 +213,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
               <div className="relative">
                 <img 
                   src={user.avatar} 
-                  className="w-12 h-12 rounded-full flex-shrink-0 border-2 border-white dark:border-slate-800 object-cover shadow-sm"
+                  className="w-12 h-12 rounded-full flex-shrink-0 object-cover shadow-sm"
                   alt={user.username}
                 />
                 {isOnline && (
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white dark:border-slate-800 rounded-full"></div>
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full"></div>
                 )}
               </div>
               <div className="flex-grow min-w-0">
@@ -233,7 +236,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
                     </span>
                   )}
                 </div>
-                <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-slate-500'}`}>
+                <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-white/80' : 'text-slate-50'}`}>
                   {lastMsg ? (lastMsg.file ? '📎 File' : lastMsg.text) : (isOnline ? 'Online' : 'Offline')}
                 </p>
               </div>

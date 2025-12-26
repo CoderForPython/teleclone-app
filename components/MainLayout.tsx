@@ -40,8 +40,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
           setSelectedUser(SUPPORT_BOT);
         } else {
           const updatedSelected = otherUsers.find(u => u.id === selectedUser.id);
+          // If the selected user just got blocked or deleted, deselect them immediately
           if (updatedSelected) {
-            setSelectedUser(updatedSelected);
+            if (updatedSelected.isBlocked) {
+              setSelectedUser(null);
+            } else {
+              setSelectedUser(updatedSelected);
+            }
           } else {
             setSelectedUser(null);
           }
