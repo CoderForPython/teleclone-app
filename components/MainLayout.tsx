@@ -19,9 +19,11 @@ interface MainLayoutProps {
   currentUser: User;
   onLogout: () => void;
   onUserUpdate: (updates: Partial<User>) => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUpdate }) => {
+const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUpdate, theme, onToggleTheme }) => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
@@ -58,6 +60,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
 
   useEffect(() => {
     const unsubscribe = db.subscribeToIncomingCall(currentUser.id, (call) => {
+      // Don't show incoming call if user has calls disabled
+      if (currentUser.callsDisabled) {
+        if (call && call.status === 'ringing') {
+          db.updateCall(currentUser.id, { status: 'rejected' });
+        }
+        return;
+      }
+
       if (call && (call.status === 'ringing' || call.status === 'accepted')) {
         setActiveCall(call);
       } else {
@@ -65,15 +75,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
       }
     });
     return () => unsubscribe();
-  }, [currentUser.id]);
+  }, [currentUser.id, currentUser.callsDisabled]);
 
   const handleBack = () => {
     setSelectedUser(null);
   };
 
-  const startCall = (target: User, type: 'audio' | 'video') => {
+  const startCall = (target: User) => {
     if (target.id === 'bot_support') {
       alert("Бот не принимает звонки");
+      return;
+    }
+    if (target.callsDisabled) {
+      alert(`У пользователя ${target.username} отключены звонки`);
       return;
     }
     const callId = `call_${Date.now()}`;
@@ -84,19 +98,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
       callerAvatar: currentUser.avatar || '',
       receiverId: target.id,
       status: 'ringing',
-      type: type,
+      type: 'audio',
       timestamp: Date.now()
     };
     setActiveCall(newCall);
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-white relative">
+    <div className={`flex h-screen w-full overflow-hidden ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'} relative`}>
       {activeCall && (
         <CallOverlay 
           currentUser={currentUser} 
           activeCall={activeCall} 
           onClose={() => setActiveCall(null)} 
+          theme={theme}
         />
       )}
 
@@ -105,13 +120,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
           users={users} 
           currentUser={currentUser} 
           onClose={() => setIsAdminPanelOpen(false)} 
+          theme={theme}
         />
       )}
 
       <div 
         className={`
           ${selectedUser ? 'hidden md:flex' : 'flex'} 
-          w-full md:w-[350px] flex-shrink-0 border-r border-slate-200 flex flex-col h-full bg-slate-50/30
+          w-full md:w-[350px] flex-shrink-0 border-r ${theme === 'dark' ? 'border-slate-800 bg-slate-900/50' : 'border-slate-200 bg-slate-50/30'} flex flex-col h-full
         `}
       >
         <Sidebar 
@@ -122,28 +138,31 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
           onUserSelect={(user) => setSelectedUser(user)}
           onLogout={onLogout}
           onUserUpdate={onUserUpdate}
+          theme={theme}
+          onToggleTheme={onToggleTheme}
         />
       </div>
 
       <div className={`
         ${!selectedUser ? 'hidden md:flex' : 'flex'} 
-        flex-grow flex flex-col bg-slate-100 relative h-full
+        flex-grow flex flex-col ${theme === 'dark' ? 'bg-slate-900' : 'bg-slate-100'} relative h-full
       `}>
         {selectedUser ? (
           <ChatWindow 
             targetUser={selectedUser} 
             currentUser={currentUser} 
             onBack={handleBack}
-            onStartCall={(type) => startCall(selectedUser, type)}
+            onStartCall={() => startCall(selectedUser)}
             onOpenAdmin={() => setIsAdminPanelOpen(true)}
+            theme={theme}
           />
         ) : (
           <div className="flex-grow flex flex-col items-center justify-center text-slate-400 p-8">
-            <div className="bg-slate-200/50 p-6 rounded-full mb-4">
-               <i className="fa-solid fa-paper-plane text-5xl text-blue-400"></i>
+            <div className={`${theme === 'dark' ? 'bg-slate-800' : 'bg-slate-200/50'} p-6 rounded-full mb-4`}>
+               <i className={`fa-solid fa-paper-plane text-5xl ${theme === 'dark' ? 'text-blue-500' : 'text-blue-400'}`}></i>
             </div>
-            <h2 className="text-xl font-medium text-slate-600 text-center">Выберите чат, чтобы начать общение</h2>
-            <p className="mt-2 text-slate-400 text-sm max-w-xs text-center">
+            <h2 className={`text-xl font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'} text-center`}>Выберите чат, чтобы начать общение</h2>
+            <p className={`mt-2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'} text-sm max-w-xs text-center`}>
               Общайтесь с друзьями или нашим новым ботом поддержки.
             </p>
           </div>

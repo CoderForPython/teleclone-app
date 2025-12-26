@@ -8,6 +8,7 @@ export interface User {
   lastSeen?: number; // Numeric timestamp for real-time tracking
   isBlocked?: boolean;
   blockReason?: string;
+  callsDisabled?: boolean;
 }
 
 export interface Message {
@@ -39,7 +40,7 @@ export interface CallData {
   callerAvatar: string;
   receiverId: string;
   status: 'ringing' | 'accepted' | 'rejected' | 'ended';
-  type: 'audio' | 'video';
+  type: 'audio';
   offer?: any;
   answer?: any;
   timestamp: number;
