@@ -6,6 +6,8 @@ export interface User {
   avatar?: string;
   status: 'online' | 'offline';
   lastSeen?: number; // Numeric timestamp for real-time tracking
+  isBlocked?: boolean;
+  blockReason?: string;
 }
 
 export interface Message {
@@ -28,4 +30,16 @@ export interface Chat {
   lastMessage?: Message;
   type: 'private' | 'group' | 'ai';
   title?: string;
+}
+
+export interface CallData {
+  id: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar: string;
+  receiverId: string;
+  status: 'ringing' | 'accepted' | 'rejected' | 'ended';
+  offer?: any;
+  answer?: any;
+  timestamp: number;
 }

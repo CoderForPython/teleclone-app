@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User, Message } from '../types';
 import { db } from '../services/db';
 
@@ -10,17 +10,95 @@ interface SidebarProps {
   selectedUserId?: string;
   onUserSelect: (user: User) => void;
   onLogout: () => void;
+  onUserUpdate: (updates: Partial<User>) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, selectedUserId, onUserSelect, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, selectedUserId, onUserSelect, onLogout, onUserUpdate }) => {
   const [search, setSearch] = useState('');
+  const [view, setView] = useState<'chats' | 'settings'>('chats');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredUsers = users.filter(user => {
     return user.username.toLowerCase().includes(search.toLowerCase());
   });
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      try {
+        await db.updateUser(currentUser.id, { avatar: base64 });
+        onUserUpdate({ avatar: base64 });
+      } catch (err) {
+        console.error("Avatar update failed:", err);
+      } finally {
+        setUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setUploading(false);
+      console.error("FileReader error");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input
+  };
+
   return (
-    <>
+    <div className="flex flex-col h-full relative overflow-hidden bg-white">
+      {/* Settings Overlay */}
+      <div className={`absolute inset-0 z-30 bg-white transition-transform duration-300 ease-in-out ${view === 'settings' ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 flex items-center space-x-4 border-b border-slate-200 bg-white sticky top-0 z-10">
+          <button onClick={() => setView('chats')} className="text-slate-500 hover:text-blue-500 p-2 transition-colors">
+            <i className="fa-solid fa-arrow-left text-lg"></i>
+          </button>
+          <h2 className="text-lg font-bold text-slate-800">Settings</h2>
+        </div>
+        
+        <div className="flex flex-col items-center p-8 bg-slate-50 border-b border-slate-200">
+          <div className="relative group cursor-pointer" onClick={() => !uploading && fileInputRef.current?.click()}>
+            <img 
+              src={currentUser.avatar} 
+              className="w-24 h-24 rounded-full border-4 border-white shadow-md object-cover" 
+              alt="Profile" 
+            />
+            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <i className="fa-solid fa-camera text-white text-2xl"></i>
+            </div>
+            {uploading && (
+              <div className="absolute inset-0 bg-white/60 rounded-full flex items-center justify-center z-10">
+                <i className="fa-solid fa-circle-notch fa-spin text-blue-500 text-2xl"></i>
+              </div>
+            )}
+            <input type="file" ref={fileInputRef} onChange={handleAvatarChange} className="hidden" accept="image/*" />
+          </div>
+          <h3 className="mt-4 text-xl font-bold text-slate-800">{currentUser.username}</h3>
+          <p className="text-blue-500 text-sm font-medium">Online</p>
+        </div>
+
+        <div className="p-2 space-y-1 overflow-y-auto">
+          <div className="px-4 py-3 flex items-center space-x-4 hover:bg-slate-50 cursor-pointer transition-colors rounded-xl mx-2">
+            <div className="w-10 h-10 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center">
+              <i className="fa-solid fa-user"></i>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-800">Edit Profile</p>
+              <p className="text-xs text-slate-400">Username, bio, etc.</p>
+            </div>
+          </div>
+          <div className="px-4 py-3 flex items-center space-x-4 hover:bg-red-50 cursor-pointer transition-colors rounded-xl mx-2 text-red-500" onClick={onLogout}>
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <i className="fa-solid fa-right-from-bracket"></i>
+            </div>
+            <p className="text-sm font-semibold">Log Out</p>
+          </div>
+        </div>
+      </div>
+
       <div className="p-4 flex items-center justify-between border-b border-slate-200 bg-white shadow-sm z-20">
         <div className="flex items-center space-x-3 overflow-hidden">
           <img src={currentUser.avatar} alt="Avatar" className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
@@ -29,13 +107,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
             <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Online</span>
           </div>
         </div>
-        <button 
-          onClick={onLogout}
-          className="text-slate-400 hover:text-red-500 p-2 transition-colors rounded-lg hover:bg-red-50"
-          title="Logout"
-        >
-          <i className="fa-solid fa-right-from-bracket"></i>
-        </button>
+        <div className="flex items-center space-x-1">
+          <button 
+            onClick={() => setView('settings')}
+            className="text-slate-400 hover:text-blue-500 p-2 transition-colors rounded-lg hover:bg-blue-50"
+          >
+            <i className="fa-solid fa-gear"></i>
+          </button>
+          <button 
+            onClick={onLogout}
+            className="text-slate-400 hover:text-red-500 p-2 transition-colors rounded-lg hover:bg-red-50"
+          >
+            <i className="fa-solid fa-right-from-bracket"></i>
+          </button>
+        </div>
       </div>
 
       <div className="p-4 bg-white">
@@ -52,9 +137,6 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
       </div>
 
       <div className="flex-grow overflow-y-auto space-y-1 py-2 bg-white">
-        {filteredUsers.length === 0 && (
-          <p className="text-center text-slate-400 text-xs mt-10">No users found</p>
-        )}
         {filteredUsers.map(user => {
           const convId = db.getConversationId(currentUser.id, user.id);
           const lastMsg = lastMessages[convId];
@@ -98,7 +180,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentUser, users, lastMessages, sel
           );
         })}
       </div>
-    </>
+    </div>
   );
 };
 
