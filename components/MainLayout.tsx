@@ -41,7 +41,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
           if (updatedSelected) {
             setSelectedUser(updatedSelected);
           } else {
-            // Selected user might have been destroyed by admin
             setSelectedUser(null);
           }
         }
@@ -72,7 +71,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
     setSelectedUser(null);
   };
 
-  const startCall = (target: User) => {
+  const startCall = (target: User, type: 'audio' | 'video') => {
     if (target.id === 'bot_support') {
       alert("Бот не принимает звонки");
       return;
@@ -85,6 +84,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
       callerAvatar: currentUser.avatar || '',
       receiverId: target.id,
       status: 'ringing',
+      type: type,
       timestamp: Date.now()
     };
     setActiveCall(newCall);
@@ -134,7 +134,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ currentUser, onLogout, onUserUp
             targetUser={selectedUser} 
             currentUser={currentUser} 
             onBack={handleBack}
-            onStartCall={() => startCall(selectedUser)}
+            onStartCall={(type) => startCall(selectedUser, type)}
             onOpenAdmin={() => setIsAdminPanelOpen(true)}
           />
         ) : (

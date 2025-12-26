@@ -7,7 +7,7 @@ interface ChatWindowProps {
   targetUser: User;
   currentUser: User;
   onBack: () => void;
-  onStartCall: () => void;
+  onStartCall: (type: 'audio' | 'video') => void;
   onOpenAdmin?: () => void;
 }
 
@@ -219,13 +219,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ targetUser, currentUser, onBack
             </div>
           )}
 
-          <button 
-            onClick={onStartCall}
-            disabled={selectionMode || targetUser.id === 'bot_support'}
-            className={`transition-colors bg-blue-50 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm ${ (selectionMode || targetUser.id === 'bot_support') ? 'opacity-30 cursor-not-allowed' : 'hover:text-blue-500 text-slate-400'}`}
-          >
-            <i className="fa-solid fa-phone text-base md:text-lg"></i>
-          </button>
+          <div className="flex items-center space-x-1 md:space-x-2">
+            <button 
+              onClick={() => onStartCall('video')}
+              disabled={selectionMode || targetUser.id === 'bot_support'}
+              className={`transition-colors bg-blue-50 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm ${ (selectionMode || targetUser.id === 'bot_support') ? 'opacity-30 cursor-not-allowed' : 'hover:text-blue-500 text-slate-400'}`}
+              title="Видеозвонок"
+            >
+              <i className="fa-solid fa-video text-sm md:text-base"></i>
+            </button>
+            <button 
+              onClick={() => onStartCall('audio')}
+              disabled={selectionMode || targetUser.id === 'bot_support'}
+              className={`transition-colors bg-blue-50 w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shadow-sm ${ (selectionMode || targetUser.id === 'bot_support') ? 'opacity-30 cursor-not-allowed' : 'hover:text-blue-500 text-slate-400'}`}
+              title="Аудиозвонок"
+            >
+              <i className="fa-solid fa-phone text-sm md:text-base"></i>
+            </button>
+          </div>
 
           <div className="relative" ref={menuRef}>
             <button 

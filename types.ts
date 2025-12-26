@@ -39,6 +39,7 @@ export interface CallData {
   callerAvatar: string;
   receiverId: string;
   status: 'ringing' | 'accepted' | 'rejected' | 'ended';
+  type: 'audio' | 'video';
   offer?: any;
   answer?: any;
   timestamp: number;
