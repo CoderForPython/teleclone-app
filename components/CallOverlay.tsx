@@ -60,6 +60,11 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
       durationIntervalRef.current = window.setInterval(() => {
         setCallDuration(prev => prev + 1);
       }, 1000);
+      
+      // Ensure audio context is running when call becomes active
+      if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
     } else if (durationIntervalRef.current) {
       clearInterval(durationIntervalRef.current);
     }
@@ -76,13 +81,13 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
   useEffect(() => {
     // Basic volume setting
     if (audioRef.current) {
-      // Increased base levels: Speaker 100%, Earpiece 60% (was 30%)
-      audioRef.current.volume = isSpeaker ? 1.0 : 0.6;
+      audioRef.current.volume = 1.0; // Always keep hardware volume at max to let GainNode handle scaling
     }
     
-    // Apply GainNode boost if available (2x boost)
+    // Boost gain significantly (up to 5x)
     if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = isSpeaker ? 2.5 : 1.5;
+      // 5.0 for speaker, 3.0 for regular mode. This is very loud.
+      gainNodeRef.current.gain.setTargetAtTime(isSpeaker ? 5.0 : 3.0, audioCtxRef.current?.currentTime || 0, 0.1);
     }
   }, [isSpeaker]);
 
@@ -113,7 +118,7 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
           const gainNode = ctx.createGain();
           const destination = ctx.createMediaStreamDestination();
           
-          gainNode.gain.value = isSpeaker ? 2.5 : 1.5; // High initial boost
+          gainNode.gain.value = isSpeaker ? 5.0 : 3.0;
           
           source.connect(gainNode);
           gainNode.connect(destination);
@@ -123,7 +128,10 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
           
           if (audioRef.current) {
             audioRef.current.srcObject = destination.stream;
+            audioRef.current.play().catch(e => console.error("Playback failed", e));
           }
+          
+          ctx.resume(); // Vital for Chrome/Safari
         } else if (audioRef.current) {
           audioRef.current.srcObject = remoteStream;
         }
@@ -171,6 +179,11 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
         answer: { sdp: answer.sdp, type: answer.type }
       });
       setCallStatus('active');
+      
+      // Start audio context on user action
+      if (audioCtxRef.current) {
+        audioCtxRef.current.resume();
+      }
     } catch (err) {
       console.error("Accept Call Error:", err);
     }
@@ -217,7 +230,6 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
         <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-purple-500 rounded-full blur-[120px]"></div>
       </div>
 
-      {/* Header Info */}
       <div className={`relative z-10 flex flex-col items-center mt-12 md:mt-16 p-6 rounded-3xl transition-all duration-500 bg-black/20 backdrop-blur-md border border-white/5 shadow-xl`}>
         <div className="relative mb-6">
           <div className={`absolute inset-0 bg-blue-500 rounded-full blur-2xl opacity-40 transition-all duration-1000 ${callStatus === 'ringing' ? 'scale-150 animate-pulse' : 'scale-100'}`}></div>
@@ -239,10 +251,8 @@ const CallOverlay: React.FC<CallOverlayProps> = ({ currentUser, activeCall, onCl
         </p>
       </div>
 
-      {/* Audio element (Hidden) */}
       <audio ref={audioRef} autoPlay playsInline />
 
-      {/* Call Controls */}
       <div className="relative z-10 flex flex-col items-center space-y-6 md:space-y-8 mb-12 md:mb-16 w-full max-w-sm">
         {callStatus === 'ringing' && !isCaller ? (
           <div className="flex justify-around w-full px-8">
